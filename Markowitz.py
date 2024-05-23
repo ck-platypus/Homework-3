@@ -9,6 +9,7 @@ import quantstats as qs
 import gurobipy as gp
 import argparse
 import warnings
+import scipy.stats
 
 """
 Project Setup
@@ -66,7 +67,8 @@ class EqualWeightPortfolio:
         """
         TODO: Complete Task 1 Below
         """
-
+        self.portfolio_weights[assets] = 1 / len(assets)
+        self.portfolio_weights[self.exclude] = 0
         """
         TODO: Complete Task 1 Above
         """
@@ -117,7 +119,21 @@ class RiskParityPortfolio:
         """
         TODO: Complete Task 2 Below
         """
-
+        # returns = df_returns[assets].copy()
+        # volatility = returns.std()
+        # harmonic_mean = scipy.stats.hmean(volatility)
+        # self.portfolio_weights[assets] = harmonic_mean / len(assets) / volatility
+        # self.portfolio_weights[self.exclude] = 0
+        returns = df_returns[assets].copy()
+        for i in range(self.lookback+1):
+            self.portfolio_weights.iloc[i][assets] = 0
+        for i in range(self.lookback+1, len(returns)):
+            lookback_returns = returns.iloc[max(0, i-self.lookback):i]
+            volatility = lookback_returns.std()
+            harmonic_mean = scipy.stats.hmean(volatility)
+            weights = harmonic_mean / len(assets) / volatility
+            self.portfolio_weights.iloc[i][assets] = weights
+        self.portfolio_weights[self.exclude] = 0
         """
         TODO: Complete Task 2 Above
         """
@@ -192,11 +208,11 @@ class MeanVariancePortfolio:
 
                 # Sample Code: Initialize Decision w and the Objective
                 # NOTE: You can modify the following code
-                w = model.addMVar(n, name="w", ub=1)
-                model.setObjective(w.sum(), gp.GRB.MAXIMIZE)
-
+                w = model.addMVar(n, name="w", lb=0.0, ub=1)
+                model.setObjective(mu @ w - (gamma / 2) * (w @ Sigma @ w), gp.GRB.MAXIMIZE)
+                model.addConstr(w.sum() == 1)
                 """
-                TODO: Complete Task 3 Below
+                TODO: Complete Task 3 Above
                 """
                 model.optimize()
 
